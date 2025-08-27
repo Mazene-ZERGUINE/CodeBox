@@ -31,12 +31,9 @@ DJANGO_SETTINGS_DEV   ?=
 DJANGO_SETTINGS_PROD  ?=
 
 define run_with_settings
-	@if [ -n "$(1)" ]; then \
-		DJANGO_SETTINGS_MODULE=$(1) $(2); \
-	else \
-		$(2); \
-	fi
+	$(if $(strip $(1)),DJANGO_SETTINGS_MODULE=$(1) ,) $(2)
 endef
+
 
 .PHONY: help install dev prod migrate makemigrations superuser collectstatic shell test clean \
         celery celery-beat flower dev-all
@@ -59,11 +56,20 @@ prod:
 		--timeout $(TIMEOUT) \
 		--log-level $(LOG_LEVEL))
 
-migrate:
-	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),$(MANAGE) migrate)
+migrate: ## Apply migrations (optionally per app: make migrate app=django_celery_results)
+	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),$(MANAGE) migrate $(app))
 
 makemigrations:
 	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),$(MANAGE) makemigrations $(app))
+
+celery:
+	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),$(CELERY) -A $(CELERY_APP) worker \
+		-l $(CELERY_LOGLEVEL) -P $(CELERY_POOL) -c $(CELERY_CONCURRENCY))
+
+
+flower:
+	@command -v flower >/dev/null 2>&1 || { echo "Flower not found. Install with: pip install flower"; exit 1; }
+	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),flower -A $(CELERY_APP) --port=$(FLOWER_PORT))
 
 test:
 	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),$(MANAGE) test)
@@ -71,11 +77,3 @@ test:
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name '*.pyc' -delete 2>/dev/null || true
-
-celery:
-	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),$(CELERY) -A $(CELERY_APP) worker \
-		-l $(CELERY_LOGLEVEL) -P $(CELERY_POOL) -c $(CELERY_CONCURRENCY) -Q $(CELERY_QUEUES))
-
-flower:
-	@command -v flower >/dev/null 2>&1 || { echo "Flower not found. Install with: pip install flower"; exit 1; }
-	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),flower -A $(CELERY_APP) --port=$(FLOWER_PORT))

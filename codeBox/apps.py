@@ -20,8 +20,8 @@ class CodeBoxConfig(AppConfig):
             check_broker(broker_url, timeout=5)
             check_workers(app, timeout=5)
 
-            #if getattr(settings, "CELERY_RESULT_BACKEND", None):
-                #check_backend(app, timeout=5)
+            if getattr(settings, "CELERY_RESULT_BACKEND", None):
+                check_backend(app, timeout=5)
 
             logger.info("Celery healthcheck OK: broker + worker%s ready.",
                         " + backend" if getattr(settings, "CELERY_RESULT_BACKEND",

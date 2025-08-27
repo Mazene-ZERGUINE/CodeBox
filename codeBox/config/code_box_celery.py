@@ -4,6 +4,6 @@ from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'codeBox.settings')
 
-app = Celery('codeBox_celery')
+app = Celery('codeBox_celery', include=['codeBox.tasks'])
 app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
