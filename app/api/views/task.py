@@ -1,10 +1,10 @@
-from celery.result import AsyncResult
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.request import Request
-from ..serializers.create_task import CreateTaskSerializer, \
+from ..serializers.task import CreateTaskSerializer, \
     TaskCreatedResponseSerializer
+from ...tasks import run_code
 
 
 class SimpleTaskViewSet(viewsets.ViewSet):
@@ -17,11 +17,9 @@ class SimpleTaskViewSet(viewsets.ViewSet):
         serializer = CreateTaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        print(serializer.validated_data)
-
         data = serializer.validated_data
-        # task = run_code.delay(serializer.source_code, serializer.programming_language)
+        task = run_code.delay(data['programming_language'], data['source_code'])
 
         response = TaskCreatedResponseSerializer(
-            {"task_id": "task_id", "status": "accepted"})
+            {"task_id": task.id, "status": "accepted"})
         return Response(response.data, status=status.HTTP_202_ACCEPTED)
