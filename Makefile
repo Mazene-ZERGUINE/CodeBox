@@ -4,8 +4,8 @@
 # make migrate
 # make makemigrations app=core
 # make install
-# make shell
-# make clean
+# make celery
+# make flower
 
 SHELL := /bin/bash
 
@@ -18,6 +18,15 @@ WORKERS          ?= 3
 TIMEOUT          ?= 60
 LOG_LEVEL        ?= info
 
+CELERY            ?= celery
+CELERY_APP        ?= codeBox.celery_app
+CELERY_LOGLEVEL   ?= INFO
+CELERY_CONCURRENCY ?= 4
+CELERY_POOL       ?= prefork
+CELERY_QUEUES     ?= default
+FLOWER_PORT       ?= 5555
+
+
 DJANGO_SETTINGS_DEV   ?=
 DJANGO_SETTINGS_PROD  ?=
 
@@ -29,7 +38,8 @@ define run_with_settings
 	fi
 endef
 
-.PHONY: help install dev prod migrate makemigrations superuser collectstatic shell test clean
+.PHONY: help install dev prod migrate makemigrations superuser collectstatic shell test clean \
+        celery celery-beat flower dev-all
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -61,3 +71,11 @@ test:
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name '*.pyc' -delete 2>/dev/null || true
+
+celery:
+	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),$(CELERY) -A $(CELERY_APP) worker \
+		-l $(CELERY_LOGLEVEL) -P $(CELERY_POOL) -c $(CELERY_CONCURRENCY) -Q $(CELERY_QUEUES))
+
+flower:
+	@command -v flower >/dev/null 2>&1 || { echo "Flower not found. Install with: pip install flower"; exit 1; }
+	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),flower -A $(CELERY_APP) --port=$(FLOWER_PORT))
