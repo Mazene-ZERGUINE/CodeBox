@@ -1,12 +1,55 @@
+import logging
+import time
+import os
 from pathlib import Path
+from .config.logging import ColorFormatter
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 
-SECRET_KEY = "django-insecure-$9wlw!de(1x45pdr(l8e0sph&18))q3sfzgu6(p2jm#_v6p$5w"
+LOG_LEVEL = "INFO"
 
-DEBUG = True
-
-ALLOWED_HOSTS = []
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "color": {
+            "()": ColorFormatter,
+            "format": "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        },
+        "plain": {
+            "format": "%(asctime)s | %(levelname)s | %(name)s:%(lineno)d | %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": LOG_LEVEL,
+            "formatter": "color",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -15,6 +58,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "django_celery_results",
+    "app",
 ]
 
 MIDDLEWARE = [
@@ -28,13 +74,8 @@ MIDDLEWARE = [
 ]
 
 REST_FRAMEWORK = {
-    "DEFAULT_RENDERER_CLASSES": [
-        "rest_framework.renderers.JSONRenderer",
-    ]
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
 }
-
-
-ROOT_URLCONF = "codeBox.urls"
 
 TEMPLATES = [
     {
@@ -52,39 +93,32 @@ TEMPLATES = [
     },
 ]
 
+ROOT_URLCONF = "codeBox.urls"
 WSGI_APPLICATION = "codeBox.wsgi.application"
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation"
-                ".UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
 STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+ENVIRONMENT = os.getenv('DJANGO_ENVIRONMENT', 'development')
+
+if ENVIRONMENT == 'production':
+    from .environment.production import *
+else:
+    from .environment.development import *
+
+logging.getLogger(__name__).warning(
+    f"Server is running in {ENVIRONMENT} environment configurations")
