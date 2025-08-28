@@ -14,6 +14,10 @@ from pathlib import Path
 from typing import Union
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class JobDir:
@@ -22,6 +26,7 @@ class JobDir:
     Mounted read-only inside the container.
     Auto-cleaned on context exit or .cleanup().
     """
+
     def __init__(self) -> None:
         base = Path(settings.BASE_DIR).joinpath("..", "exec").resolve()
         base.mkdir(parents=True, exist_ok=True)
@@ -30,7 +35,8 @@ class JobDir:
         self._td = tempfile.TemporaryDirectory(dir=str(base))
         self.path: Path = Path(self._td.name).resolve()
 
-    def write(self, rel: Union[str, os.PathLike], content: str, mode: int = 0o644) -> str:
+    def write(self, rel: Union[str, os.PathLike], content: str,
+              mode: int = 0o644) -> str:
         p = (self.path / Path(rel)).resolve()
         if not str(p).startswith(str(self.path)):
             # Prevent path traversal outside the job dir
@@ -48,3 +54,42 @@ class JobDir:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.cleanup()
+
+
+def ensure_storage_dir(path: Path, label: str) -> None:
+    """
+        Ensure `path` exists as a directory, is readable & writable.
+        Logs whether it existed or was created.
+        Raises ImproperlyConfigured on any failure (stops app startup).
+        """
+    path = Path(path)
+    try:
+        if path.exists():
+            if not path.is_dir():
+                raise ImproperlyConfigured(
+                    f"{label} '{path}' exists but is not a directory.")
+
+            logger.info("%s: directory exists at %s", label, path)
+        else:
+            path.mkdir(parents=True, exist_ok=False)
+
+            logger.info("%s: directory created at %s", label, path)
+        try:
+            _ = list(path.iterdir())
+        except Exception as e:
+            raise ImproperlyConfigured(f"{label} '{path}' is not readable: {e}")
+
+        try:
+            with tempfile.NamedTemporaryFile(dir=path, prefix=".permcheck_",
+                                             delete=True) as tmp:
+
+                tmp.write(b"ok")
+                tmp.flush()
+
+            logger.info("%s: directory is writable.", label)
+        except Exception as e:
+            raise ImproperlyConfigured(f"{label} '{path}' is not writable: {e}")
+
+    except Exception as exc:
+        logger.exception("Failed to prepare %s at %s: %s", label, path, exc)
+        raise

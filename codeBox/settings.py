@@ -2,6 +2,8 @@ import logging
 import time
 import os
 from pathlib import Path
+
+import codeBox.apps
 from .config.logging import ColorFormatter
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -61,7 +63,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_celery_results",
     "app",
-    "codeBox"
+    "codeBox",
 ]
 
 MIDDLEWARE = [
@@ -111,6 +113,10 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+
+STORAGE_BASE = BASE_DIR / "codeBox" / "storage"
+STORAGE_IN = STORAGE_BASE / "in"
+STORAGE_OUT = STORAGE_BASE / "out"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

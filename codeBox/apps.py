@@ -14,7 +14,6 @@ class CodeBoxConfig(AppConfig):
     def ready(self):
         if os.environ.get("RUN_MAIN") != "true":
             return
-
         try:
             broker_url = app.conf.broker_url
             check_broker(broker_url, timeout=5)
@@ -29,3 +28,4 @@ class CodeBoxConfig(AppConfig):
         except Exception as e:
             logger.critical("Celery healthcheck FAILED: %s", e, exc_info=True)
             raise SystemExit(1)
+
