@@ -1,9 +1,9 @@
 from rest_framework.routers import DefaultRouter
 from .views.core import CoreViewSet
-from .views.task import SimpleTaskViewSet
+from .views.code_execution import CodeExecutionViewSet
 
 router = DefaultRouter()
 router.register(r"core", CoreViewSet, basename="core")
-router.register(r"task", SimpleTaskViewSet, basename="task")
+router.register(r"task", CodeExecutionViewSet, basename="task")
 
 urlpatterns = router.urls

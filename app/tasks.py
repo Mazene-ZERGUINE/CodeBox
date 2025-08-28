@@ -1,38 +1,76 @@
-import os
-import subprocess
+import uuid
+from typing import Any, Dict
 
 from celery import shared_task
-from .services.docker_service import get_docker_run_command, run_docker_command
-from codeBox import settings
-from .services.code_runner_service import extract_extension
-import uuid
+from codeBox.apps import logger
 
-SOURCE_DIR_PATH = os.path.join(settings.BASE_DIR, '..', 'exec')
+from .services.paths_service import JobDir
+from .services.lang_service import (
+    Language,
+    normalize_language,
+    extract_extension,
+    build_lang_command,
+)
+from .services.docker_service import (
+    get_docker_run_command_ro,
+    run_docker_command,
+)
+
+
+def _normalize_result(res: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize any result dict coming from the Docker runner into the correct format and type.
+    """
+    return {
+        "stdout": res.get("stdout", ""),
+        "stderr": res.get("stderr", ""),
+        "returncode": res.get("returncode", None),
+        "error": res.get("error", None),
+    }
 
 
 @shared_task()
-def run_code(programming_language: str, source_code: str) -> dict[str, str]:
+def run_code(programming_language: str, source_code: str) -> Dict[str, Any]:
+    """
+    Celery task: execute user-provided source code inside an isolated controlled and secure Docker container.
+
+    - A fresh, per-job temporary directory is created on the host and mounted read-only
+        at /sandbox inside the container.
+
+    - All compilation artifacts and runtime temp files are written to /tmp inside the
+        container, which is a tmpfs (RAM-backed) mount.
+
+
+    The container is launched with strict limits (CPU, memory, pids) and no network.
+    """
     unique_id = str(uuid.uuid4())
-    code_extension = extract_extension(programming_language)
-    temp_filename = os.path.join(SOURCE_DIR_PATH,
-                                 f'{programming_language}/code_to_run_{unique_id}.{code_extension}')
 
-    container_file_path = f'/app/resources/{programming_language}/code_to_run_{unique_id}.{code_extension}'
+    try:
+        lang: Language = normalize_language(programming_language)
+    except ValueError as e:
+        logger.error(f"Unsupported language: {programming_language}. {e}")
+        return _normalize_result(
+            {"error": "Unsupported programming language", "returncode": 2})
 
-    os.makedirs(os.path.dirname(temp_filename), exist_ok=True)
-    with open(temp_filename, 'w') as f:
-        f.write(source_code)
+    # Prepare a per-job temp dir and write the source file
+    job = JobDir()
+    try:
+        filename = f"main.{extract_extension(lang)}"
+        job.write(filename, source_code)
 
-    cmd = get_docker_run_command(programming_language, container_file_path, unique_id,
-                                 SOURCE_DIR_PATH)
-    if cmd is None:
-        return {'error': 'Unsupported programming language'}
+        # Build the in-container command for this language
+        lang_cmd = build_lang_command(lang, f"/sandbox/{filename}")
 
-    result = run_docker_command(cmd)
+        # Build docker run command with a read-only bind mount for this job dir
+        cmd = get_docker_run_command_ro(job_dir=str(job.path), lang_cmd=lang_cmd)
 
-    if os.path.exists(temp_filename):
-        os.remove(temp_filename)
+        # Execute with a strict timeout (seconds)
+        result = run_docker_command(cmd, timeout=30)
 
-    return {"stdout": result.stdout, "sterr": result.stderr,
-            "result": result.returncode} if isinstance(result,
-                                                       subprocess.CompletedProcess) else result
+        return _normalize_result(result)
+    finally:
+        #  cleanup after the execution
+        try:
+            job.cleanup()
+        except Exception as e:
+            logger.warning(f"JobDir cleanup failed for {unique_id}: {e}")

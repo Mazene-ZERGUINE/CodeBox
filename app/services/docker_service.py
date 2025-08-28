@@ -1,59 +1,90 @@
+"""
+Docker runner utilities for the sandboxed code executor (Option B: read-only bind mount).
+
+This module is responsible for:
+- Constructing a *hardened* `docker run` command that:
+  * Disables networking
+  * Uses a read-only root filesystem
+  * Mounts a per-job host directory read-only at /sandbox
+  * Provides a tmpfs at /tmp for compilation/runtime artifacts
+  * Runs as an unprivileged user
+  * Applies CPU/memory/pid limits and drops capabilities
+- Executing that command with a timeout and returning a uniform result shape.
+"""
+
+import shlex
 import subprocess
+from typing import List, Dict, Any, Optional
 
 from codeBox.apps import logger
-from .lang_service import Language, normalize_language
 
-VENV_PATH = '/app/.venv/bin/python'
+# Docker image Name
+IMAGE_NAME = "code_runner:latest"
 
 
-def get_docker_run_command(language, container_path, unique_id, resources_path):
-    lang = normalize_language(language)
-
-    common_args = [
-        'docker', 'run', '--rm', '--cpus', '1.0', '--memory', '512m', '--memory-swap',
-        '512m',
-        '--pids-limit', '100', '--cap-drop', 'ALL', '--security-opt',
-        'no-new-privileges',
-        '-v', f'{resources_path}:/app/resources',
-        '-v', f'/tmp/docker_temp_{unique_id}:/tmp'
+def get_docker_run_command_ro(*, job_dir: str, lang_cmd: List[str]) -> List[str]:
+    """
+    Build a hardened 'docker run' command that:
+      - Mounts a per-job directory read-only to /sandbox
+      - Uses a read-only root filesystem
+      - Provides a tmpfs /tmp for compilation/runtime artifacts
+      - Disables networking
+      - Drops capabilities and limits pids
+      - Runs as an unprivileged user in /sandbox
+    """
+    return [
+        "docker", "run", "--rm",
+        "--cpus", "1.0",
+        "--memory", "512m",
+        "--memory-swap", "512m",
+        "--pids-limit", "100",
+        "--cap-drop", "ALL",
+        "--security-opt", "no-new-privileges",
+        "--network", "none",
+        "--read-only",
+        "--mount", f"type=bind,src={job_dir},dst=/sandbox,ro,bind-propagation=rprivate",
+        "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m",
+        "--workdir", "/sandbox",
+        "--user", "1000:1000",
+        IMAGE_NAME,
+        *lang_cmd,
     ]
 
-    if lang is Language.python:
-        return common_args + ['code_runner:latest', VENV_PATH, container_path]
-    elif lang is Language.javascript:
-        return common_args + ['code_runner:latest', 'node', container_path]
-    elif lang is Language.php:
-        return common_args + ['code_runner:latest', 'php', container_path]
-    elif lang is Language.c:
-        compiled_path = f'/app/resources/{language}/compiled_{unique_id}'
-        compile_cmd = common_args + ['code_runner:latest', 'g++', container_path, '-o',
-                                     compiled_path]
-        compile_result = run_docker_command(compile_cmd)
-        if compile_result.returncode != 0:
-            logger.error(f'Error compiling C++ code: {compile_result.stderr}')
-            return {"stdout": compile_result.stdout, "stderr": compile_result.stderr,
-                    "returncode": compile_result.returncode}
 
-        return common_args + ['code_runner:latest', compiled_path]
-    else:
-        logger.error(f'Unsupported programming language: {language}')
-        return None
-
-
-def run_docker_command(cmd: list[str]):
+def run_docker_command(cmd: List[str], timeout: int = 30) -> Dict[str, Any]:
+    """
+    Execute the docker command with a timeout and return a uniform dict.
+    """
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        logger.info(f'Command executed successfully: {cmd}')
-        logger.info(f'stdout: {result.stdout}')
-        logger.info(f'stderr: {result.stderr}')
-        return result
+        logger.info(f"Executing: {shlex.join(cmd)}")
+        cp = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        stdout = _truncate(cp.stdout or "")
+        stderr = _truncate(cp.stderr or "")
+        logger.info(
+            f"Exit {cp.returncode}; stdout_len={len(stdout)} stderr_len={len(stderr)}")
+        return {"stdout": stdout, "stderr": stderr, "returncode": cp.returncode}
     except subprocess.TimeoutExpired as e:
-        logger.error(f'Execution time exceeded: {str(e)}, Command: {cmd}')
-        return {'error': 'Execution time exceeded'}
+        logger.error(f"Execution time exceeded: {e}")
+        return {"error": "Execution time exceeded", "stdout": "", "stderr": "",
+                "returncode": None}
     except subprocess.CalledProcessError as e:
         logger.error(
-            f'Subprocess error: {str(e)}, stdout: {e.stdout}, stderr: {e.stderr}')
-        return {'error': str(e)}
+            f"Subprocess error: {e}, stdout={len(e.stdout or '')}, stderr={len(e.stderr or '')}")
+        return {
+            "error": "Subprocess error",
+            "stdout": _truncate(e.stdout or ""),
+            "stderr": _truncate(e.stderr or ""),
+            "returncode": e.returncode if hasattr(e, "returncode") else None,
+        }
     except Exception as e:
-        logger.error(f'Unexpected error: {str(e)}, Command: {cmd}')
-        return {'error': 'Unexpected error occurred'}
+        logger.exception(f"Unexpected error running docker: {e}")
+        return {"error": "Unexpected error occurred", "stdout": "", "stderr": "",
+                "returncode": None}
+
+
+def _truncate(s: str, limit: int = 64_000) -> str:
+    if s is None:
+        return ""
+    if len(s) > limit:
+        return s[:limit] + "\n...[truncated]..."
+    return s
