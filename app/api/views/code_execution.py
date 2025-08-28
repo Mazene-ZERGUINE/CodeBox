@@ -1,3 +1,5 @@
+import json
+from celery.result import AsyncResult
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -5,6 +7,9 @@ from rest_framework.request import Request
 from ..serializers.task import CreateTaskSerializer, \
     TaskCreatedResponseSerializer
 from ...tasks import run_code
+from django_celery_results.models import TaskResult
+from celery import states
+from ..serializers.task_result import TaskResultSerializer, TaskResultPayloadSerializer
 
 
 class CodeExecutionViewSet(viewsets.ViewSet):
@@ -19,6 +24,10 @@ class CodeExecutionViewSet(viewsets.ViewSet):
         POST /tasks/create:
             Enqueue a new code-execution task. Returns a task id you can use to query
             status/results later
+
+        GET / task_result
+            Fetch the result of a task returns the task result (stdout, stderr, returncode)
+            when complete or the task status if pending, failed or rejected
 
 
     """
@@ -58,3 +67,67 @@ class CodeExecutionViewSet(viewsets.ViewSet):
             {"task_id": task.id, "status": "accepted"})
 
         return Response(response.data, status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=["GET"], url_path="task_result")
+    def task_result(self, request: Request, pk=None) -> Response:
+        """
+        Fetch the status/result of a code-execution task.
+
+        Path Parameters
+        ---------------
+        task_id (str): Celery task identifier (provided here as `pk` by the router).
+
+        Returns
+        -------
+        200 OK
+            TaskResultSerializer
+              - task_id (str)
+              - status (str): e.g., SUCCESS, FAILURE, REVOKED...
+              - result (TaskResultPayload)
+                  - stdout (str)
+                  - stderr (str)
+                  - returncode (int | null)
+                  - error (str | null)
+
+        202 Accepted
+            {"state": "PENDING" | "RECEIVED" | "STARTED" | "RETRY"}
+
+        404 Not Found
+            {"error": "TaskResult does not exist"}
+
+        400 Bad Request
+            {"error": "task_id is required"}
+        """
+        if not pk:
+            return Response({"error": "task_id is required"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            task_result = TaskResult.objects.get(task_id=pk)
+        except TaskResult.DoesNotExist:
+            res = AsyncResult(pk)
+            if res.state in {states.PENDING, states.RECEIVED, states.STARTED,
+                             states.RETRY}:
+                return Response({"state": res.state}, status=status.HTTP_202_ACCEPTED)
+            return Response({"error": "TaskResult does not exist"},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        payload = task_result.result
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError:
+                payload = {}
+
+        if isinstance(payload, dict):
+            if "stderr" not in payload and "sterr" in payload:
+                payload["stderr"] = payload.pop("sterr")
+
+        data = {
+            "task_id": pk,
+            "status": task_result.status,
+            "result": payload or {},
+        }
+
+        return Response(TaskResultSerializer(instance=data).data,
+                        status=status.HTTP_200_OK)
