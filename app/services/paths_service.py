@@ -104,6 +104,11 @@ def save_task_files_in_storage(
     files: Iterable[UploadedFile],
     target_dir: str | Path
 ) -> None:
+    """
+    Save uploaded files under storage/in/<target_dir>/
+    All files related to the task are saved under the same folder with a unique task_id
+    Files are cleaned after the task is completed.
+    """
     for file in files:
         base_name = os.path.basename(file.name)
         safe_name = get_valid_filename(base_name)

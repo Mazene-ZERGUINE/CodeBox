@@ -17,18 +17,6 @@ from .services.docker_service import (
 )
 
 
-def _normalize_result(res: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Normalize any result dict coming from the Docker runner into the correct format and type.
-    """
-    return {
-        "stdout": res.get("stdout", ""),
-        "stderr": res.get("stderr", ""),
-        "returncode": res.get("returncode", None),
-        "error": res.get("error", None),
-    }
-
-
 @shared_task()
 def run_code(programming_language: str, source_code: str) -> Dict[str, Any]:
     """
@@ -74,3 +62,20 @@ def run_code(programming_language: str, source_code: str) -> Dict[str, Any]:
             job.cleanup()
         except Exception as e:
             logger.warning(f"JobDir cleanup failed for {unique_id}: {e}")
+
+
+@shared_task()
+def run_code_with_files(payload: Dict[str, Any], task_id: uuid) -> None:
+    return None
+
+
+def _normalize_result(res: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize any result dict coming from the Docker runner into the correct format and type.
+    """
+    return {
+        "stdout": res.get("stdout", ""),
+        "stderr": res.get("stderr", ""),
+        "returncode": res.get("returncode", None),
+        "error": res.get("error", None),
+    }

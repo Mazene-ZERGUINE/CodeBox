@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from dataclasses import dataclass
+import uuid
 
 LANG_CHOICES = ("python", "javascript", "c", "php")
 
@@ -14,4 +16,3 @@ class CodeWithFilesTaskSerializer(serializers.Serializer):
     files = serializers.ListField(
         child=serializers.FileField(), allow_empty=True
     )
-
