@@ -170,5 +170,36 @@ def process_source_code(
     return processed_source_code
 
 
+def validate_processed_source_code(source_code: str) -> None:
+    """
+    Ensure no IN_* or OUT_* placeholders remain.
+    Raises ValueError with locations if any are found.
+    """
+    capture_in_pattern = re.compile(r"\bIN_(\d+)\b")
+    capture_out_pattern = re.compile(
+        r"OUT_(?:\{[A-Za-z0-9_\-]+\}|[A-Za-z0-9_\-]+)\.[A-Za-z0-9]+")
+
+    leftovers = []
+
+    def loc(index: int) -> tuple[int, int]:
+        line = source_code.count("\n", 0, index) + 1
+        last_nl = source_code.rfind("\n", 0, index)
+        col = index - (last_nl + 1)
+        return line, col + 1
+
+    for m in capture_in_pattern.finditer(source_code):
+        line, col = loc(m.start())
+        leftovers.append(f"{m.group(0)} at line {line}, col {col}")
+
+    for m in capture_out_pattern.finditer(source_code):
+        line, col = loc(m.start())
+        leftovers.append(f"{m.group(0)} at line {line}, col {col}")
+
+    if leftovers:
+        preview = "; ".join(leftovers[:5])
+        more = f" (+{len(leftovers) - 5} more)" if len(leftovers) > 5 else ""
+        raise ValueError(f"Unresolved placeholders: {preview}{more}")
+
+
 def _to_string(s: str) -> str:
     return f'"{s}"'
