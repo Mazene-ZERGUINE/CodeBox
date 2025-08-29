@@ -12,6 +12,6 @@ class CodeWithFilesTaskSerializer(serializers.Serializer):
 
     # Uploaded Files
     files = serializers.ListField(
-        child=serializers.FileField(), allow_empty=False
+        child=serializers.FileField(), allow_empty=True
     )
 

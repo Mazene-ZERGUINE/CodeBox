@@ -11,13 +11,18 @@ This module provides `JobDir`, a tiny helper that:
 import os
 import tempfile
 from pathlib import Path
-from typing import Union
+from typing import Union, Iterable
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 import logging
+from django.core.files.storage import FileSystemStorage
+from django.core.files.uploadedfile import UploadedFile
+from django.utils.text import get_valid_filename
 
 logger = logging.getLogger(__name__)
+
+fs_inbox = FileSystemStorage(location=str(settings.STORAGE_IN))
 
 
 class JobDir:
@@ -93,3 +98,15 @@ def ensure_storage_dir(path: Path, label: str) -> None:
     except Exception as exc:
         logger.exception("Failed to prepare %s at %s: %s", label, path, exc)
         raise
+
+
+def save_task_files_in_storage(
+    files: Iterable[UploadedFile],
+    target_dir: str | Path
+) -> None:
+    for file in files:
+        base_name = os.path.basename(file.name)
+        safe_name = get_valid_filename(base_name)
+
+        related_path = fs_inbox.get_available_name(os.path.join(target_dir, safe_name))
+        fs_inbox.save(related_path, file)
