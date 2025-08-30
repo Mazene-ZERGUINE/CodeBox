@@ -1,4 +1,24 @@
-# services/media_service.py
+"""
+This service provides utilities for streaming file downloads directly from
+Django's default storage backend. It supports two main use cases:
+
+1. **Single file download**
+   - Ensures the file exists in storage.
+   - Returns a `FileResponse` that streams the file to the client as an attachment.
+
+2. **Multiple files as ZIP download**
+   - Collects multiple storage entries (`OutputEntry` objects).
+   - Builds a temporary ZIP archive using a spooled temporary file
+     (kept in memory until it reaches 64MB, then written to disk).
+   - Automatically inserts a `MISSING_FILES.txt` entry in the ZIP if some
+     files are not found at download time.
+   - Streams the ZIP archive back to the client as a downloadable response.
+
+The service ensures efficient memory usage and avoids loading all files into
+memory at once. It is intended for cases where users may request multiple
+files for bulk download, such as exporting reports, datasets, or user uploads.
+"""
+
 from __future__ import annotations
 from typing import Iterable, Tuple, List
 from django.core.files.storage import default_storage
@@ -37,7 +57,6 @@ def build_zip_spooled(entries: Iterable[OutputEntry]) -> Tuple[
         for e in entries:
             if default_storage.exists(e.path):
                 with default_storage.open(e.path, "rb") as src:
-                    # writestr reads fully; acceptable for typical sizes. For huge files, switch to zf.open() + chunked writes.
                     zf.writestr(e.arcname, src.read())
             else:
                 missing.append(e.arcname)

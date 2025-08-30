@@ -1,3 +1,9 @@
+"""
+initializes the Celery application for the Django project.
+
+It ensures the Celery app is correctly integrated with Django's settings
+and task modules.
+"""
 from __future__ import absolute_import, unicode_literals
 import os
 from celery import Celery

@@ -9,12 +9,12 @@ from ..serializers.task import CreateTaskSerializer, \
 from ...tasks import run_code
 from django_celery_results.models import TaskResult
 from celery import states
-from ..serializers.task_result import TaskResultSerializer, TaskResultPayloadSerializer
+from ..serializers.task_result import TaskResultSerializer
 
 
 class CodeExecutionViewSet(viewsets.ViewSet):
     """
-    Code Execution Tasks API
+    Code Execution Tasks ViewSet
 
     This ViewSet exposes  endpoints to handel and manage code execution tasks.
     The execution is performed asynchronously via Celery.
@@ -28,8 +28,6 @@ class CodeExecutionViewSet(viewsets.ViewSet):
         GET / task_result
             Fetch the result of a task returns the task result (stdout, stderr, returncode)
             when complete or the task status if pending, failed or rejected
-
-
     """
 
     @action(detail=False, methods=["POST"], url_path="create")
@@ -88,6 +86,7 @@ class CodeExecutionViewSet(viewsets.ViewSet):
                   - stderr (str)
                   - returncode (int | null)
                   - error (str | null)
+                  - output_files (list[str]) only if the task generates files
 
         202 Accepted
             {"state": "PENDING" | "RECEIVED" | "STARTED" | "RETRY"}

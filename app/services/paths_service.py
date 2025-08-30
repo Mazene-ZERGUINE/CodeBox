@@ -5,7 +5,6 @@ This module provides `JobDir`, a tiny helper that:
 - Creates a *unique* temporary directory for each execution under a single allowed base
 - Writes user source files safely within that directory (guards against path traversal).
 - Cleans up the directory automatically.
-
 """
 
 import os
@@ -20,15 +19,15 @@ from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import UploadedFile
 from django.utils.text import get_valid_filename
 
-logger = logging.getLogger(__name__)
-
-fs_inbox = FileSystemStorage(location=str(settings.STORAGE_IN))
-
 
 @dataclass(frozen=True)
 class OutputEntry:
     path: str
     arcname: str
+
+
+logger = logging.getLogger(__name__)
+fs_inbox = FileSystemStorage(location=str(settings.STORAGE_IN))
 
 
 class JobDir:
@@ -42,19 +41,20 @@ class JobDir:
         base = Path(settings.BASE_DIR).joinpath("..", "exec").resolve()
         base.mkdir(parents=True, exist_ok=True)
 
-        # Create per-job temp dir inside allowed base
         self._td = tempfile.TemporaryDirectory(dir=str(base))
         self.path: Path = Path(self._td.name).resolve()
 
     def write(self, rel: Union[str, os.PathLike], content: str,
               mode: int = 0o644) -> str:
         p = (self.path / Path(rel)).resolve()
+
         if not str(p).startswith(str(self.path)):
-            # Prevent path traversal outside the job dir
             raise ValueError("Attempted to write outside of the job directory.")
+
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
         os.chmod(p, mode)
+
         return str(p)
 
     def cleanup(self) -> None:
@@ -137,12 +137,11 @@ def normalize_output_files(files: Iterable[Dict]) -> List[OutputEntry]:
         if not path:
             continue
 
-        # Prefer provided name; fallback to basename of path
         name = (f.get("name") or "").strip() or os.path.basename(path)
-        # Avoid duplicates (same path + arcname)
         key = (path, name)
         if key in seen:
             continue
+
         seen.add(key)
 
         entries.append(OutputEntry(path=path, arcname=name))

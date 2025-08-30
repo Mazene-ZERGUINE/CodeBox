@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 from django.conf import settings
 
+
 def purge_storage():
     for rel in ("storage/in", "storage/out"):
         p = Path(settings.BASE_DIR) / rel

@@ -1,5 +1,4 @@
 import json
-
 from celery.result import AsyncResult, states
 from django.http.response import Http404
 from django_celery_results.models import TaskResult
@@ -18,13 +17,58 @@ log = logging.getLogger(__name__)
 
 
 class CodeWithFilesViewSet(viewsets.ViewSet):
+    """
+    File Tasks API ViewSet
+
+    This ViewSet exposes  endpoints to handle files related code executions and output
+    files downloads
+    The execution is performed asynchronously via Celery
+    Files are downloaded as single files and as zips
+
+    Endpoints:
+    ----------
+        POST / /file_task/create
+            - Generate a unique id for each task
+            - Upload the used files in  /storage/in/<task_id> directory
+
+            - Enqueue a new code-execution task. Returns a task id you can use to query
+            status/results later
+
+        GET /file_task/{task_id}/download
+            Downloads the generated output files (if generated) of the passed task_id
+            as a single file or as a zip if many files
+    """
     parser_classes = [MultiPartParser, FormParser]
 
     @action(detail=False, methods=['POST'], url_path='create')
     def create_file_task(self, request: Request) -> Response:
-        serializer = CodeWithFilesTaskSerializer(data=request.data)
+        """
+        Upload the resources files in /storage/in/<task_id> directory
+        Enqueue a new code-execution task
 
-        # Data validations
+        Request Body <formData>
+        ------------
+            programming_language (str) -> One of supported languages (python, javascript, php, c)
+            source_code (str): The full source code to run/compile.
+            input_files (list[str]): Array with the input file names
+            files: list[File]: the uploaded files
+
+        Returns
+        -------
+            202 Accepted:
+                TaskCreatedResponseSerializer
+                    - task_id (str): Celery task identifier.
+                     - status (str): Always 'accepted' on success.
+
+            400 Bad Request:
+                If validation fails. (ex: Programming Language not supported)
+
+        Notes
+        ------
+        - The files and the input_files array must be identical
+        - the uploaded files must not exceed the MAX 5 files
+        """
+        serializer = CodeWithFilesTaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
@@ -41,6 +85,18 @@ class CodeWithFilesViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=["GET"], url_path="download")
     def download_file_task(self, request, pk=None):
+        """
+        Downloads the generated output files (if generated)
+
+        Path Parameters
+        ---------------
+        task_id (str): Celery task identifier (provided here as `pk` by the router)
+
+        Returns:
+        --------
+            200 OK:
+                List of generated files {name: str, path: str}
+        """
         if not pk:
             return Response({"error": "task_id is required"},
                             status=status.HTTP_400_BAD_REQUEST)
@@ -77,7 +133,3 @@ class CodeWithFilesViewSet(viewsets.ViewSet):
                             status=status.HTTP_404_NOT_FOUND)
         except Http404 as e:
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
-
-
-
-

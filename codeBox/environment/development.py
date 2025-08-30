@@ -4,9 +4,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 load_dotenv(dotenv_path=BASE_DIR / ".env.dev", override=True)
 
+# Environment configurations
 DEBUG = os.getenv("DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-change-me")
@@ -32,10 +32,3 @@ if not CELERY_RESULT_BACKEND:
     logger = logging.getLogger(__name__)
     logger.error('Configuration Error Occurred: CELERY_RESULT_BACKEND not set')
     raise ValueError("CELERY_RESULT_BACKEND is not set")
-
-# S3 configuration
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-S3_REGION_NAME = os.getenv("S3_REGION_NAME", "")
-SAVING_MODE = os.getenv("SAVING_MODE", "local")

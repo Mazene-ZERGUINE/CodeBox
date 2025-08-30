@@ -1,3 +1,9 @@
+"""
+This module defines the Django application configuration (`AppConfig`)
+for the `codeBox` app. It extends Django's startup checks to include
+ Celery healthcheck, ensuring the message broker, workers, and (optionally)
+the result backend are reachable before the app fully runs.
+"""
 from django.conf import settings
 from codeBox.config.code_box_celery import app
 from codeBox.config.celery_health import check_broker, check_workers, check_backend

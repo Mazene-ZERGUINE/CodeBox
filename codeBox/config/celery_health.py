@@ -1,3 +1,31 @@
+"""
+This service provides low-level healthcheck utilities for verifying the
+availability and proper functioning of a Celery deployment. It is useful
+for monitoring, readiness checks, and diagnosing connectivity issues.
+
+The checks include:
+
+1. **Broker check (`check_broker`)**
+   - Verifies that the message broker (RabbitMQ) is reachable.
+   - Raises an exception if the broker cannot be reached.
+
+2. **Worker check (`check_workers`)**
+   - Sends a `ping` control command to all registered workers.
+   - Ensures that at least one worker replies.
+   - Raises a `RuntimeError` if no workers respond.
+
+3. **Backend check (`check_backend`)**
+   - Sends a lightweight test task (`health.ping`) through Celery.
+   - Waits for the result from the result backend within a given timeout.
+   - Ensures the backend is properly configured and reachable.
+   - Raises a `RuntimeError` if the backend times out or returns
+     an unexpected response.
+
+Together, these functions provide a full health validation of:
+- The broker (message queue),
+- The workers (task executors),
+- The result backend (task result store).
+"""
 import logging
 from kombu import Connection
 from celery.result import AsyncResult

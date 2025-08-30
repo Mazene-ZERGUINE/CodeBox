@@ -58,11 +58,3 @@ if not CELERY_RESULT_BACKEND:
     logger.error('Configuration Error Occurred: CELERY_RESULT_BACKEND not set')
     raise ValueError("CELERY_RESULT_BACKEND is not set")
 
-# Local vs cloud saving strategy toggle
-SAVING_MODE = os.getenv("SAVING_MODE", "local")  # "local" or "s3"
-
-# S3 buckets configurations
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-S3_REGION_NAME = os.getenv("S3_REGION_NAME", "")
