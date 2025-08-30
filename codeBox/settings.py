@@ -64,6 +64,11 @@ INSTALLED_APPS = [
     "django_celery_results",
     "app",
     "codeBox",
+    "django_crontab"
+]
+
+CRONJOBS = [
+  ('0 6 * * *', 'myapp.cron.purge_storage', '>> /var/log/purge.log 2>&1'),
 ]
 
 MIDDLEWARE = [

@@ -67,6 +67,10 @@ celery:
 		-l $(CELERY_LOGLEVEL) -P $(CELERY_POOL) -c $(CELERY_CONCURRENCY))
 
 
+crontab-add:
+	python manage.py crontab add
+	python manage.py crontab show
+
 flower:
 	@command -v flower >/dev/null 2>&1 || { echo "Flower not found. Install with: pip install flower"; exit 1; }
 	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),flower -A $(CELERY_APP) --port=$(FLOWER_PORT))
