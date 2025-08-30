@@ -14,11 +14,20 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 6
       start_period: 10s
+    networks:
+      - appnet
+
+  code-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: code_runner:latest
+    command: [ "sleep", "infinity" ]
     networks:
       - appnet
 

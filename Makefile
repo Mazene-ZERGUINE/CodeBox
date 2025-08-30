@@ -30,6 +30,9 @@ FLOWER_PORT       ?= 5555
 DJANGO_SETTINGS_DEV   ?=
 DJANGO_SETTINGS_PROD  ?=
 
+VENV_DIR ?= venv
+PYTHON   ?= python3
+
 define run_with_settings
 	$(if $(strip $(1)),DJANGO_SETTINGS_MODULE=$(1) ,) $(2)
 endef
@@ -43,7 +46,16 @@ help:
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 install:
-	@if [ -f requirements.txt ]; then pip install -r requirements.txt; else echo "No requirements.txt"; fi
+	@if [ ! -d "$(VENV_DIR)" ]; then \
+		echo "Creating virtual environment in $(VENV_DIR)..."; \
+		$(PYTHON) -m venv $(VENV_DIR); \
+	fi
+	@echo "Activating venv and installing requirements..."
+	@if [ -f requirements.txt ]; then \
+		. $(VENV_DIR)/bin/activate && pip install -r requirements.txt; \
+	else \
+		echo "No requirements.txt found"; \
+	fi
 
 dev:
 	$(call run_with_settings,$(DJANGO_SETTINGS_DEV),$(MANAGE) runserver $(HOST):$(PORT))
