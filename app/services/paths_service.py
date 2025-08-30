@@ -11,8 +11,8 @@ This module provides `JobDir`, a tiny helper that:
 import os
 import tempfile
 from pathlib import Path
-from typing import Union, Iterable
-
+from typing import Union, Iterable, Dict, List
+from dataclasses import dataclass
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 import logging
@@ -23,6 +23,12 @@ from django.utils.text import get_valid_filename
 logger = logging.getLogger(__name__)
 
 fs_inbox = FileSystemStorage(location=str(settings.STORAGE_IN))
+
+
+@dataclass(frozen=True)
+class OutputEntry:
+    path: str
+    arcname: str
 
 
 class JobDir:
@@ -115,3 +121,34 @@ def save_task_files_in_storage(
 
         related_path = fs_inbox.get_available_name(os.path.join(target_dir, safe_name))
         fs_inbox.save(related_path, file)
+
+
+def normalize_output_files(files: Iterable[Dict]) -> List[OutputEntry]:
+    """
+    Accepts TaskResult.result['output_files'] (list of dicts)
+    and returns a normalized, de-duplicated list of OutputEntry.
+    Skips invalid items (no path).
+    """
+    entries: List[OutputEntry] = []
+    seen = set()
+
+    for f in files or []:
+        path = (f.get("path") or "").strip()
+        if not path:
+            continue
+
+        # Prefer provided name; fallback to basename of path
+        name = (f.get("name") or "").strip() or os.path.basename(path)
+        # Avoid duplicates (same path + arcname)
+        key = (path, name)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        entries.append(OutputEntry(path=path, arcname=name))
+
+    return entries
+
+
+def build_zip_filename(task_id: str) -> str:
+    return f"task-{task_id}-outputs.zip"
