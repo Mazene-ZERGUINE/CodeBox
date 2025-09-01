@@ -33,9 +33,12 @@ WORKDIR /app
 # ENV for Node.js modules
 ENV PATH="/app/node_modules/.bin:$PATH"
 ENV PHP_AUTOLOAD_PATH="/app/resources/php/vendor/autoload.php"
+ENV NODE_PATH=/app/node_modules
+
 
 RUN chmod -R 777 /app/resources
-RUN mkdir -p /app/temp && chmod -R 777 /app/temp
+
+RUN mkdir -p /app/temp && chmod -R 777 /app/temp && chmod -R 777 /tmp
 
 # Set the default command
 CMD ["bash"]
