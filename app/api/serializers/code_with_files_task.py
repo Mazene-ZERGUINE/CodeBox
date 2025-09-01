@@ -7,7 +7,6 @@ class CodeWithFilesTaskSerializer(serializers.Serializer):
     programming_language = serializers.ChoiceField(choices=LANG_CHOICES)
     source_code = serializers.CharField()
     input_files = serializers.ListField(child=serializers.CharField(), allow_null=True)
-    output_files = serializers.ListField(child=serializers.CharField(), allow_null=True)
 
     files = serializers.ListField(
         child=serializers.FileField(), allow_empty=True
