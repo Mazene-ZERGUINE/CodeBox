@@ -1,0 +1,119 @@
+{
+	"info": {
+		"_postman_id": "9dc46e47-264b-4c93-8be4-f83fb7d41b4c",
+		"name": "CodeBox",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "15516236"
+	},
+	"item": [
+		{
+			"name": "Code execution task request",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"programming_language\": \"python\",\n    \"source_code\": \"print('hello world, this is a python example')\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/task/create/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"task",
+						"create",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Code execution with file request",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "source_code",
+							"value": "// Try different import methods for different Jimp versions\nlet Jimp;\ntry {\n    // For newer versions of Jimp (0.16+)\n    Jimp = require('jimp').default || require('jimp');\n} catch (e) {\n    try {\n        // Alternative import method\n        const JimpModule = require('jimp');\n        Jimp = JimpModule.default || JimpModule;\n    } catch (e2) {\n        console.error('Could not import Jimp:', e2);\n        process.exit(1);\n    }\n}\n\n(async () => {\n    try {\n        console.log('Script started');\n        console.log('Jimp object:', typeof Jimp);\n        console.log('Jimp.read:', typeof Jimp.read);\n        \n        // Define all variables inline\n        const width = 800;\n        const height = Jimp.AUTO;\n        const quality = 80;\n        const watermarkPosition = 'bottom-right';\n        const watermarkText = '© Your Brand 2024';\n        const outputPath = OUT_IMAGE.PNG;\n\n        console.log('Variables defined');\n        console.log('Input file:', IN_1);\n        console.log('Output file:', outputPath);\n\n        console.log('Loading image...');\n        const image = await Jimp.read(IN_1);\n\n        console.log(`Original size: ${image.getWidth()}x${image.getHeight()}`);\n\n        // Resize the image\n        console.log('Resizing image...');\n        image.resize(width, height);\n\n        console.log(`New size: ${image.getWidth()}x${image.getHeight()}`);\n\n        // Load font for watermark\n        console.log('Loading font...');\n        const font = await Jimp.loadFont(Jimp.FONT_SANS_32_WHITE);\n\n        // Calculate watermark position\n        const imageWidth = image.getWidth();\n        const imageHeight = image.getHeight();\n        const textWidth = Jimp.measureText(font, watermarkText);\n        const textHeight = Jimp.measureTextHeight(font, watermarkText);\n\n        console.log('Calculating position...');\n        let x, y;\n\n        if (watermarkPosition === 'top-left') {\n            x = 10;\n            y = 10;\n        } else if (watermarkPosition === 'top-right') {\n            x = imageWidth - textWidth - 10;\n            y = 10;\n        } else if (watermarkPosition === 'bottom-left') {\n            x = 10;\n            y = imageHeight - textHeight - 10;\n        } else if (watermarkPosition === 'center') {\n            x = (imageWidth - textWidth) / 2;\n            y = (imageHeight - textHeight) / 2;\n        } else { // bottom-right (default)\n            x = imageWidth - textWidth - 10;\n            y = imageHeight - textHeight - 10;\n        }\n\n        console.log(`Watermark position: x=${x}, y=${y}`);\n\n        // Add watermark text\n        console.log('Adding watermark...');\n        image.print(font, x, y, {\n            text: watermarkText,\n            alignmentX: Jimp.HORIZONTAL_ALIGN_LEFT,\n            alignmentY: Jimp.VERTICAL_ALIGN_TOP\n        });\n\n        // Adjust quality and save\n        console.log('Saving processed image...');\n        await image.quality(quality).writeAsync(outputPath);\n\n        console.log(`✅ Image processed successfully!`);\n        console.log(`📁 Saved to: ${outputPath}`);\n\n    } catch (error) {\n        console.error('❌ Error processing image:', error.message);\n        console.error('Error stack:', error.stack);\n    }\n})();",
+							"type": "text"
+						},
+						{
+							"key": "input_files",
+							"value": "logo.png",
+							"type": "text"
+						},
+						{
+							"key": "programming_language",
+							"value": "javascript",
+							"type": "text"
+						},
+						{
+							"key": "files",
+							"type": "file",
+							"src": "/Users/mmazenezerguine/Documents/projects/code_sphere/codeBox/docs/examples/watermark_example/logo.png"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/file_task/create/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"file_task",
+						"create",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Task results request",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		},
+		{
+			"name": "Download request",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/api/file_task/e5c63f61-d150-4303-831b-0621cf9afe63/download/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"file_task",
+						"e5c63f61-d150-4303-831b-0621cf9afe63",
+						"download",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
