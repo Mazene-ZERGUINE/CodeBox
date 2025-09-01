@@ -105,9 +105,8 @@ def build_lang_command(lang: Language, source_path: str) -> List[str]:
     if lang is Language.c:
         # Compile in /tmp and run; single 'sh -lc' keeps it in one container
         return [
-            "sh",
-            "-lc",
-            f"gcc {source_path} -O2 -std=c11 -o /tmp/main && /tmp/main",
+            "sh", "-lc",
+            f'gcc "{source_path}" -O2 -std=c11 -o /tmp/main && chmod 755 /tmp/main && /tmp/main'
         ]
 
     if lang is Language.cpp:

@@ -35,15 +35,14 @@ def get_docker_run_command_ro(*, job_dir: str, lang_cmd: List[str]) -> List[str]
     return [
         "docker", "run", "--rm",
         "--cpus", "1.0",
-        "--memory", "512m",
-        "--memory-swap", "512m",
+        "--memory", "512m", "--memory-swap", "512m",
         "--pids-limit", "100",
         "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges",
         "--network", "none",
         "--read-only",
         "--mount", f"type=bind,src={job_dir},dst=/sandbox,ro,bind-propagation=rprivate",
-        "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=64m",
+        "--tmpfs", "/tmp:rw,exec,nosuid,nodev,mode=1777,size=64m",  # <-- exec + 1777
         "--workdir", "/sandbox",
         "--user", "1000:1000",
         IMAGE_NAME,
